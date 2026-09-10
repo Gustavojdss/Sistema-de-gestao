@@ -9,7 +9,8 @@ import {
   CheckCircle2,
   AlertTriangle,
   FileText,
-  Truck
+  Truck,
+  LogOut
 } from 'lucide-react';
 import { Usuario, Obra, Notificacao } from '../types/erp';
 
@@ -24,6 +25,7 @@ interface NavbarProps {
   setSelectedObraId: (id: number | 'all') => void;
   notificacoes: Notificacao[];
   onMarkNotificacaoLida: (id: number) => void;
+  onLogout?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -36,7 +38,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   selectedObraId,
   setSelectedObraId,
   notificacoes,
-  onMarkNotificacaoLida
+  onMarkNotificacaoLida,
+  onLogout
 }) => {
   const [showNotifMenu, setShowNotifMenu] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -218,9 +221,36 @@ export const Navbar: React.FC<NavbarProps> = ({
                       ))}
                     </div>
                   </div>
+
+                  {onLogout && (
+                    <div className="p-2 border-t border-slate-800">
+                      <button
+                        onClick={() => {
+                          setShowUserMenu(false);
+                          onLogout();
+                        }}
+                        className="w-full flex items-center justify-center gap-2 p-2 rounded-lg text-xs font-bold text-red-400 hover:text-white bg-red-950/40 hover:bg-red-900/60 border border-red-900/50 transition-colors cursor-pointer"
+                      >
+                        <LogOut className="w-3.5 h-3.5" />
+                        <span>Encerrar Sessão</span>
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
+
+            {/* Quick Logout Button */}
+            {onLogout && (
+              <button
+                onClick={onLogout}
+                title="Sair do Sistema (Logout)"
+                className="hidden sm:flex items-center gap-1.5 p-2 bg-slate-800/80 hover:bg-red-950/60 text-slate-400 hover:text-red-300 border border-slate-700/80 hover:border-red-800/60 rounded-xl transition-all text-xs font-semibold cursor-pointer"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                <span className="hidden xl:inline text-[11px]">Sair</span>
+              </button>
+            )}
 
           </div>
         </div>

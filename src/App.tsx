@@ -13,6 +13,7 @@ import { AuditoriaView } from './components/AuditoriaView';
 import { DocsView } from './components/DocsView';
 import { ApiView } from './components/ApiView';
 import { EmailNotificationModal } from './components/EmailNotificationModal';
+import { LoginScreen } from './components/LoginScreen';
 
 import {
   Usuario,
@@ -74,12 +75,31 @@ import {
 
 export default function App() {
   // State
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem('brasal_erp_session');
+      return !!saved;
+    } catch {
+      return false;
+    }
+  });
+
   const [currentMode, setCurrentMode] = useState<'erp' | 'docs' | 'api'>('erp');
   const [activeTab, setActiveTab] = useState<ErpTab>('dashboard');
   const [selectedObraId, setSelectedObraId] = useState<number | 'all'>('all');
 
   const [usuarios, setUsuarios] = useState<Usuario[]>(INITIAL_USUARIOS);
-  const [currentUser, setCurrentUser] = useState<Usuario>(INITIAL_USUARIOS[0]);
+  const [currentUser, setCurrentUser] = useState<Usuario>(() => {
+    try {
+      const saved = localStorage.getItem('brasal_erp_session');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        const match = INITIAL_USUARIOS.find(u => u.id === parsed.id || u.email.toLowerCase() === (parsed.email || '').toLowerCase());
+        if (match) return match;
+      }
+    } catch {}
+    return INITIAL_USUARIOS[0];
+  });
   const [obras, setObras] = useState<Obra[]>(INITIAL_OBRAS);
   const [colaboradores, setColaboradores] = useState<Colaborador[]>(INITIAL_COLABORADORES);
   const [itensAlmoxarifado, setItensAlmoxarifado] = useState<ItemAlmoxarifado[]>(INITIAL_ITENS_ALMOXARIFADO);
@@ -213,6 +233,7 @@ export default function App() {
   const [formUsuario, setFormUsuario] = useState({
     nome: '',
     email: '',
+    senha: '',
     tipo: 'gestor' as 'admin' | 'gestor',
     obra_id: 1
   });
@@ -624,6 +645,51 @@ export default function App() {
     showToast(`Vistoria concluída com checklist aprovado!`);
   };
 
+  const handleLoginSuccess = (usuario: Usuario, rememberMe: boolean) => {
+    setCurrentUser(usuario);
+    setIsAuthenticated(true);
+    if (rememberMe) {
+      try {
+        localStorage.setItem('brasal_erp_session', JSON.stringify({ id: usuario.id, email: usuario.email }));
+      } catch {}
+    } else {
+      try {
+        localStorage.removeItem('brasal_erp_session');
+      } catch {}
+    }
+    const newLog: LogAuditoria = {
+      id: Date.now(),
+      created_at: new Date().toISOString().replace('T', ' ').substring(0, 19),
+      usuario_id: usuario.id,
+      usuario_nome: usuario.nome,
+      modulo: 'Autenticação',
+      acao: 'LOGIN',
+      detalhes: `Usuário ${usuario.nome} (${usuario.email}) autenticado com sucesso no sistema ERP`,
+      ip_origem: '187.54.120.33'
+    };
+    setAuditLogs(prev => [newLog, ...prev]);
+    showToast(`Bem-vindo(a) ao ERP Brasal, ${usuario.nome}!`);
+  };
+
+  const handleLogout = () => {
+    const newLog: LogAuditoria = {
+      id: Date.now(),
+      created_at: new Date().toISOString().replace('T', ' ').substring(0, 19),
+      usuario_id: currentUser.id,
+      usuario_nome: currentUser.nome,
+      modulo: 'Autenticação',
+      acao: 'LOGOUT',
+      detalhes: `Usuário ${currentUser.nome} encerrou a sessão no sistema`,
+      ip_origem: '187.54.120.33'
+    };
+    setAuditLogs(prev => [newLog, ...prev]);
+    try {
+      localStorage.removeItem('brasal_erp_session');
+    } catch {}
+    setIsAuthenticated(false);
+    showToast('Sessão encerrada com sucesso.');
+  };
+
   const handleCreateUsuario = (e: React.FormEvent) => {
     e.preventDefault();
     const obra = obras.find(o => o.id === Number(formUsuario.obra_id));
@@ -631,6 +697,7 @@ export default function App() {
       id: Date.now(),
       nome: formUsuario.nome,
       email: formUsuario.email,
+      senha: formUsuario.senha.trim() || '123456',
       tipo: formUsuario.tipo,
       obra_id: formUsuario.tipo === 'gestor' ? Number(formUsuario.obra_id) : null,
       obra_nome: formUsuario.tipo === 'gestor' ? obra?.nome : undefined,
@@ -640,6 +707,13 @@ export default function App() {
     setUsuarios(prev => [...prev, newUser]);
     addAuditLog('Usuários', 'CADASTRO DE USUÁRIO', `Criou conta ${newUser.email} com perfil ${newUser.tipo}`);
     setModalNovoUsuario(false);
+    setFormUsuario({
+      nome: '',
+      email: '',
+      senha: '',
+      tipo: 'gestor',
+      obra_id: 1
+    });
     showToast(`Usuário "${newUser.nome}" criado com sucesso!`);
   };
 
@@ -727,6 +801,24 @@ export default function App() {
     window.print();
   };
 
+  // If user is not authenticated, render Login Screen
+  if (!isAuthenticated) {
+    return (
+      <>
+        {toastMessage && (
+          <div className="fixed bottom-6 right-6 z-50 bg-slate-900 text-white px-5 py-3 rounded-2xl shadow-2xl border border-slate-700 flex items-center gap-3 animate-fade-in text-xs font-semibold">
+            <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping"></div>
+            <span>{toastMessage}</span>
+          </div>
+        )}
+        <LoginScreen 
+          usuarios={usuarios} 
+          onLoginSuccess={handleLoginSuccess} 
+        />
+      </>
+    );
+  }
+
   return (
     <div className="h-screen bg-slate-100 flex flex-col text-slate-800 font-sans antialiased selection:bg-red-800 selection:text-white overflow-hidden">
       
@@ -743,13 +835,20 @@ export default function App() {
         currentMode={currentMode}
         setCurrentMode={setCurrentMode}
         currentUser={currentUser}
-        setCurrentUser={setCurrentUser}
+        setCurrentUser={(user) => {
+          setCurrentUser(user);
+          try {
+            localStorage.setItem('brasal_erp_session', JSON.stringify({ id: user.id, email: user.email }));
+          } catch {}
+          addAuditLog('Autenticação', 'TROCA DE PERFIL', `Alternou para o perfil: ${user.nome} (${user.tipo})`);
+        }}
         usuariosList={usuarios}
         obrasList={obras}
         selectedObraId={selectedObraId}
         setSelectedObraId={setSelectedObraId}
         notificacoes={notificacoes}
         onMarkNotificacaoLida={handleMarkNotificacaoLida}
+        onLogout={handleLogout}
       />
 
       {/* Main Body */}
@@ -1690,6 +1789,16 @@ export default function App() {
                   value={formUsuario.email}
                   onChange={(e) => setFormUsuario({ ...formUsuario, email: e.target.value })}
                   className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none"
+                />
+              </div>
+              <div>
+                <label className="font-bold text-slate-700 block mb-1">Senha de Acesso</label>
+                <input
+                  type="text"
+                  placeholder="Padrão: 123456 (se em branco)"
+                  value={formUsuario.senha}
+                  onChange={(e) => setFormUsuario({ ...formUsuario, senha: e.target.value })}
+                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none font-mono"
                 />
               </div>
               <div className="grid grid-cols-2 gap-3">

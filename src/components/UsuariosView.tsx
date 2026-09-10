@@ -116,7 +116,13 @@ export const UsuariosView: React.FC<UsuariosViewProps> = ({
                       </div>
                     </div>
                   </td>
-                  <td className="px-2.5 py-1.5 sm:px-3 sm:py-2 text-slate-700 font-medium truncate">{user.email}</td>
+                  <td className="px-2.5 py-1.5 sm:px-3 sm:py-2 text-slate-700 font-medium truncate">
+                    <div>{user.email}</div>
+                    <div className="text-[10px] text-slate-500 font-mono flex items-center gap-1 mt-0.5">
+                      <KeyRound className="w-2.5 h-2.5 text-slate-400" />
+                      <span>Senha: {user.senha || '123456'}</span>
+                    </div>
+                  </td>
                   <td className="px-2.5 py-1.5 sm:px-3 sm:py-2">
                     <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase ${
                       user.tipo === 'admin' 

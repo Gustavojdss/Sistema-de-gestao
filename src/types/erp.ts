@@ -2,6 +2,7 @@ export interface Usuario {
   id: number;
   nome: string;
   email: string;
+  senha?: string;
   tipo: 'admin' | 'gestor';
   obra_id?: number | null;
   obra_nome?: string;
