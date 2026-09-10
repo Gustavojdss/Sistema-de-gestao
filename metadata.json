@@ -1,0 +1,6 @@
+{
+  "name": "Brasal Engenharia - ERP e Especificação Técnica",
+  "description": "Sistema ERP completo para gestão de obras da construção civil com controle de almoxarifado, materiais, colaboradores, validação de documentos, vistorias e central de especificação técnica e arquitetura.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
